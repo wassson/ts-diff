@@ -1,5 +1,7 @@
 {
   "name": "ts-diff",
+  "author": "Austin Wasson",
+  "version": "0.0.1",
   "module": "index.ts",
   "type": "module",
   "devDependencies": {
