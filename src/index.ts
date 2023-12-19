@@ -14,7 +14,7 @@ type Files = {
 }
 
 type Headers = {
-  desctiptors: string[];
+  descriptors: string[];
   lineChanges: string;
 }
 
