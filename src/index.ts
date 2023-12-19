@@ -19,7 +19,7 @@ type Headers = {
 }
 
 
-export default function Diff(gitDiff: string): DiffChunks {
+export default function ParseDiff(gitDiff: string): DiffChunks {
   const diffChunks: string[] = gitDiff.split('diff --git');
   let files: Files = { from: '', to: '' }
   let headers = {}; 
