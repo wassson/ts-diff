@@ -1,5 +1,5 @@
 {
-  "name": "ts-diff",
+  "name": "ts-differ",
   "author": "Austin Wasson",
   "version": "0.0.1",
   "module": "index.ts",
