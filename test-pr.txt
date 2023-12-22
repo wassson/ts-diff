@@ -1,0 +1,142 @@
+diff --git a/src/describe.ts b/src/describe.ts
+index 243cca5..e97c94d 100644
+--- a/src/describe.ts
++++ b/src/describe.ts
+@@ -9,7 +9,7 @@ import { ollamaPrompt } from './ollama/index.js';
+ const describe = new Command();
+ 
+ describe
+-  .version("0.0.6")
++  .version("0.0.4")
+   .description("Analyze a pull request and push a summary to the pull request on GitHub.")
+   .argument('<value>', 'Pull request number')
+   .parse(process.argv);
+@@ -22,12 +22,11 @@ const main = async () => {
+ 
+   if (response.status == 200) {
+     const promptResponse = await ollamaPrompt(response.data)
+-
+     console.log("Pushing description to GitHub...")
++
+     const pushResponse = await pushDescription(pullRequestNumber, promptResponse)
+     if (pushResponse.status == 200) {
+       console.log("Done!")
+-      console.log(pushResponse.data)
+     }
+   } else { 
+     console.log({ status: response.status, message: response.data })
+diff --git a/src/github/index.ts b/src/github/index.ts
+index f34f20f..67613d9 100644
+--- a/src/github/index.ts
++++ b/src/github/index.ts
+@@ -6,7 +6,6 @@ export const pullRequestDiff = async (number: string) => {
+   const owner = process.env.GITHUB_OWNER || ''
+   const repo = process.env.GITHUB_REPOSITORY || ''
+ 
+-  
+   const response = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}.diff', {
+     owner: owner,
+     repo: repo,
+@@ -33,4 +32,65 @@ export const pushDescription = async (number: string, description: string) => {
+   })
+ 
+   return response
++}
++
++export const parseDiff = (diff: string) => {
++  const lines = diff.split('\n')
++  const files: any[] = []
++  let currentFile: any = {}
++  let currentHunk: any = {}
++  let currentLine: any = {}
++
++  lines.forEach((line) => {
++    if (line.startsWith('diff --git')) {
++      currentFile = {}
++      currentHunk = {}
++      currentLine = {}
++
++      const fileParts = line.split(' ')
++      const fileNames = fileParts[2].split('...')
++
++      console.log("====================")
++      console.log(fileParts)
++      console.log(fileNames)
++      console.log("====================")
++      currentFile.oldFileName = fileNames[0].replace('a/', '')
++      currentFile.newFileName = fileNames[1].replace('b/', '')
++      currentFile.hunks = []
++
++      files.push(currentFile)
++    } else if (line.startsWith('@@')) {
++      currentHunk = {}
++      currentLine = {}
++
++      const hunkParts = line.split(' ')
++      const hunkOldLineNumbers = hunkParts[1].split(',')
++      const hunkNewLineNumbers = hunkParts[2].split(',')
++
++      currentHunk.oldStart = hunkOldLineNumbers[0].replace('-', '')
++      currentHunk.oldLines = hunkOldLineNumbers[1]
++      currentHunk.newStart = hunkNewLineNumbers[0].replace('+', '')
++      currentHunk.newLines = hunkNewLineNumbers[1]
++      currentHunk.lines = []
++
++      currentFile.hunks.push(currentHunk)
++    } else if (line.startsWith('+')) {
++      currentLine = {}
++      currentLine.type = 'addition'
++      currentLine.content = line.replace('+', '')
++      currentHunk.lines.push(currentLine)
++    } else if (line.startsWith('-')) {
++      currentLine = {}
++      currentLine.type = 'deletion'
++      currentLine.content = line.replace('-', '')
++      currentHunk.lines.push(currentLine)
++    } else if (line.startsWith(' ')) {
++      currentLine = {}
++      currentLine.type = 'context'
++      currentLine.content = line.replace(' ', '')
++      currentHunk.lines.push(currentLine)
++    }
++  })
++
++  return files
+ }
+\ No newline at end of file
+diff --git a/src/review.ts b/src/review.ts
+index 9bfaed5..e50a37f 100644
+--- a/src/review.ts
++++ b/src/review.ts
+@@ -1,18 +1,29 @@
+ #!/usr/bin/env node
+ 
++import 'dotenv/config'
+ import { Command } from "commander"
++import { parseDiff, pullRequestDiff } from "./github/index.js";
+ 
+ // CLI
+-const program = new Command();
++const review = new Command();
+ 
+-program
++review
+   .version("0.0.6")
+   .description("Review the pull request diff and push the review to the pull request on GitHub.")
+   .argument('<value>', 'Pull request number')
+   .parse(process.argv);
+ 
++const pullRequestNumber = review.args[0]
++
+ // Execution
+ const main = async () => {
++  const response = await pullRequestDiff(pullRequestNumber)
++  console.log(response.data)
++
++  if (response.status == 200) {
++    const parsedDiff = parseDiff(response.data)
++    console.log(parsedDiff)
++  }
+   console.log("Reviewing PR...")
+ }
+ 
