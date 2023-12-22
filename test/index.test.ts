@@ -1,4 +1,4 @@
-import { describe, expect, test, toEqual } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import fs from 'fs'
 import ParseDiff from '../src/index.ts'
 
